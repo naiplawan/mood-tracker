@@ -5,6 +5,10 @@ import '../widgets/add_mood_dialog.dart';
 import '../widgets/mood_card.dart';
 import '../widgets/empty_state_widget.dart';
 import '../constants/mood_data.dart';
+import 'login_page.dart';
+import 'analytics_page.dart';
+import 'calendar_page.dart';
+import 'settings_page.dart';
 
 class MoodHomePage extends StatefulWidget {
   const MoodHomePage({super.key});
@@ -136,19 +140,39 @@ class _MoodHomePageState extends State<MoodHomePage> {
         );
       },
     );
-  }
-  void _showErrorSnackBar(String message) {
+  }  void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.error_outline, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
+            Icon(
+              Icons.error_outline,
+              color: Theme.of(context).colorScheme.onError,
+              size: 20,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onError,
+                ),
+              ),
+            ),
           ],
         ),
-        backgroundColor: Colors.red[600],
+        backgroundColor: Theme.of(context).colorScheme.error,
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(4),
+        ),
+        action: SnackBarAction(
+          label: 'Dismiss',
+          textColor: Theme.of(context).colorScheme.onError,
+          onPressed: () {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          },
+        ),
       ),
     );
   }
@@ -158,17 +182,30 @@ class _MoodHomePageState extends State<MoodHomePage> {
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.check_circle_outline, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
+            Icon(
+              Icons.check_circle_outline,
+              color: Theme.of(context).colorScheme.onTertiary,
+              size: 20,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onTertiary,
+                ),
+              ),
+            ),
           ],
         ),
-        backgroundColor: Colors.green[600],
+        backgroundColor: Theme.of(context).colorScheme.tertiary,
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(4),
+        ),
       ),
     );
   }
-
   void _showMoodSummary() {
     final moodCounts = <String, int>{};
     for (final entry in moodEntries) {
@@ -179,25 +216,112 @@ class _MoodHomePageState extends State<MoodHomePage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Your Mood Summary'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Total entries: ${moodEntries.length}'),
-              const SizedBox(height: 16),
-              ...moodCounts.entries.map((entry) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  children: [
-                    Text(MoodData.getMoodEmoji(entry.key)),
-                    const SizedBox(width: 8),
-                    Text(entry.key),
-                    const Spacer(),
-                    Text('${entry.value}x'),
-                  ],
+          icon: Icon(
+            Icons.insights_outlined,
+            color: Theme.of(context).colorScheme.primary,
+            size: 24,
+          ),
+          title: Text(
+            'Your Mood Insights',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Summary stats
+                Card(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  elevation: 0,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.mood_outlined,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Total entries',
+                              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            Text(
+                              '${moodEntries.length}',
+                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w500,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              )),
-            ],
+                const SizedBox(height: 16),
+                
+                // Mood breakdown
+                Text(
+                  'Mood breakdown',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ...moodCounts.entries.map((entry) {
+                  final moodColor = MoodData.getMoodColor(entry.key);
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: moodColor.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Center(
+                            child: Text(
+                              MoodData.getMoodEmoji(entry.key),
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            entry.key,
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: moodColor.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '${entry.value}',
+                            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                              color: moodColor,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -208,42 +332,136 @@ class _MoodHomePageState extends State<MoodHomePage> {
         );
       },
     );
+  }  void _handleLogout() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: Icon(
+          Icons.logout_outlined,
+          color: Theme.of(context).colorScheme.error,
+          size: 24,
+        ),
+        title: Text(
+          'Sign out',
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        content: Text(
+          'Are you sure you want to sign out of your account?',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const LoginPage()),
+              );
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            child: const Text('Sign out'),
+          ),
+        ],
+      ),
+    );
   }
-  @override
+  @override  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-      title: const Text('Mood Notes'),
-      backgroundColor: Theme.of(context).colorScheme.primary,
-      foregroundColor: Colors.white,
-      actions: [
-        if (moodEntries.isNotEmpty)
-        IconButton(
-          icon: const Icon(Icons.insights),
-          onPressed: _showMoodSummary,
-          tooltip: 'View mood insights',
-        ),
-      ],
-      ),
-      body: Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          Theme.of(context).colorScheme.primary,
-          Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+        title: const Text('Mood Notes'),
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
+        surfaceTintColor: Theme.of(context).colorScheme.surfaceTint,
+        actions: [
+          if (moodEntries.isNotEmpty) ...[
+            IconButton(
+              icon: const Icon(Icons.calendar_month),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CalendarPage(moodEntries: moodEntries),
+                  ),
+                );
+              },
+              tooltip: 'Calendar view',
+            ),
+            IconButton(
+              icon: const Icon(Icons.analytics_outlined),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AnalyticsPage(moodEntries: moodEntries),
+                  ),
+                );
+              },
+              tooltip: 'Analytics',
+            ),
+          ],
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              switch (value) {
+                case 'settings':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SettingsPage(moodEntries: moodEntries),
+                    ),
+                  );
+                  break;
+                case 'insights':
+                  _showMoodSummary();
+                  break;
+                case 'logout':
+                  _handleLogout();
+                  break;
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'settings',
+                child: ListTile(
+                  leading: Icon(Icons.settings),
+                  title: Text('Settings'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              if (moodEntries.isNotEmpty)
+                const PopupMenuItem(
+                  value: 'insights',
+                  child: ListTile(
+                    leading: Icon(Icons.insights_outlined),
+                    title: Text('Quick Insights'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              const PopupMenuItem(
+                value: 'logout',
+                child: ListTile(
+                  leading: Icon(Icons.logout),
+                  title: Text('Sign out'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
+          ),
         ],
-        stops: const [0.0, 0.2],
-        ),
       ),
-      child: _buildBody(),
-      ),
-      floatingActionButton: FloatingActionButton(
-      onPressed: _showAddMoodDialog,
-      backgroundColor: Theme.of(context).colorScheme.primary,
-      foregroundColor: Colors.white,
-      child: const Icon(Icons.add_reaction),
+      body: _buildBody(),floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showAddMoodDialog,
+        tooltip: 'Add mood',
+        icon: const Icon(Icons.add),
+        label: const Text('Add mood'),
       ),
     );
   }
