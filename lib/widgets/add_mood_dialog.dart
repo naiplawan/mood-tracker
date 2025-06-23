@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import '../constants/mood_data.dart';
+import '../services/theme_service.dart';
 
 class AddMoodDialog extends StatefulWidget {
   final Function(String, String, String) onAddMood;
@@ -20,111 +22,136 @@ class _AddMoodDialogState extends State<AddMoodDialog> {
     _noteController.dispose();
     super.dispose();
   }
+
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
     final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
-    final availableHeight = screenHeight - keyboardHeight - 120; // Account for system UI
-    
+    final availableHeight = screenHeight - keyboardHeight - 120;
+
     return Dialog(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      surfaceTintColor: Theme.of(context).colorScheme.surfaceTint,
+      backgroundColor: Colors.transparent,
       child: Container(
         constraints: BoxConstraints(
-          maxWidth: 400, 
+          maxWidth: 400,
           maxHeight: availableHeight.clamp(400.0, 600.0),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Fixed Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      Icons.mood,
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
-                      size: 24,
-                    ),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFF1E293B).withOpacity(0.95),
+              const Color(0xFF0F172A).withOpacity(0.95),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.1),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 16,
+              spreadRadius: 0,
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          gradient: ThemeService.primaryGradient,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Theme.of(context).primaryColor.withOpacity(0.3),
+                              blurRadius: 8,
+                              spreadRadius: 0,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.add_reaction_outlined,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Text(
+                        'How are you feeling?',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
+                ),
+                
+                // Scrollable Content
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Mood Selection
                         Text(
-                          'How are you feeling?',
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          'Select your mood',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w600,
+                            color: Colors.white,
                           ),
                         ),
+                        const SizedBox(height: 12),
+                        _buildMoodSelector(),
+                        const SizedBox(height: 20),
+                        
+                        // Note Field
                         Text(
-                          'Choose your mood and add a note',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          'Add a note (optional)',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
                           ),
                         ),
+                        const SizedBox(height: 8),
+                        _buildNoteField(),
+                        const SizedBox(height: 16),
                       ],
                     ),
                   ),
-                ],
-              ),
-            ),
-            
-            // Scrollable Content
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Mood Selection
-                    Text(
-                      'Select your mood',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildMoodSelector(),
-                    const SizedBox(height: 20),
-                    
-                    // Note Field
-                    Text(
-                      'Add a note (optional)',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildNoteField(),
-                    const SizedBox(height: 16),
-                  ],
                 ),
-              ),
-            ),
-            
-            // Fixed Action Buttons
-            Container(
-              padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-              decoration: BoxDecoration(
-                border: Border(
-                  top: BorderSide(
-                    color: Theme.of(context).colorScheme.outlineVariant,
-                    width: 1,
+                
+                // Fixed Action Buttons
+                Container(
+                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(
+                        color: Theme.of(context).colorScheme.outlineVariant,
+                        width: 1,
+                      ),
+                    ),
                   ),
+                  child: _buildActionButtons(),
                 ),
-              ),
-              child: _buildActionButtons(),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'dart:ui';
 import '../models/mood_entry.dart';
 import '../constants/mood_data.dart';
+import '../utils/animations.dart';
 
 class CalendarPage extends StatefulWidget {
   final List<MoodEntry> moodEntries;
@@ -35,395 +37,220 @@ class _CalendarPageState extends State<CalendarPage> {
     return widget.moodEntries.where((entry) => isSameDay(entry.timestamp, day)).toList();
   }
 
-  Map<DateTime, List<MoodEntry>> _groupEventsByDay() {
-    Map<DateTime, List<MoodEntry>> events = {};
-    for (final entry in widget.moodEntries) {
-      final date = DateTime(entry.timestamp.year, entry.timestamp.month, entry.timestamp.day);
-      if (events[date] != null) {
-        events[date]!.add(entry);
-      } else {
-        events[date] = [entry];
-      }
-    }
-    return events;
-  }
-
-  Color? _getDayColor(DateTime day) {
-    final events = _getEventsForDay(day);
-    if (events.isEmpty) return null;
-    
-    // Get the most recent mood for this day
-    final latestMood = events.reduce((a, b) => 
-      a.timestamp.isAfter(b.timestamp) ? a : b);
-    
-    return MoodData.getMoodColor(latestMood.mood).withOpacity(0.7);
+  Color _colorWithOpacity(Color color, double opacity) {
+    return color.withValues(
+      red: color.red / 255,
+      green: color.green / 255,
+      blue: color.blue / 255,
+      alpha: opacity,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mood Calendar'),
-        elevation: 0,
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        foregroundColor: Theme.of(context).colorScheme.onSurface,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.today),
-            onPressed: () {
-              setState(() {
-                _focusedDay = DateTime.now();
-                _selectedDay = DateTime.now();
-                _selectedEvents.value = _getEventsForDay(_selectedDay!);
-              });
-            },
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Card(
-            margin: const EdgeInsets.all(8),
-            child: TableCalendar<MoodEntry>(
-              firstDay: DateTime.utc(2020, 1, 1),
-              lastDay: DateTime.utc(2030, 12, 31),
-              focusedDay: _focusedDay,
-              calendarFormat: _calendarFormat,
-              eventLoader: _getEventsForDay,
-              startingDayOfWeek: StartingDayOfWeek.monday,
-              selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-              
-              // Calendar styling
-              calendarStyle: CalendarStyle(
-                outsideDaysVisible: false,
-                weekendTextStyle: TextStyle(color: Theme.of(context).colorScheme.primary),
-                holidayTextStyle: TextStyle(color: Theme.of(context).colorScheme.error),
-                markerDecoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.secondary,
-                  shape: BoxShape.circle,
-                ),
-                markersMaxCount: 1,
-                canMarkersOverflow: false,
-              ),
-              
-              // Header styling
-              headerStyle: HeaderStyle(
-                formatButtonVisible: true,
-                titleCentered: true,
-                formatButtonShowsNext: false,
-                formatButtonDecoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                formatButtonTextStyle: TextStyle(
-                  color: Theme.of(context).colorScheme.onPrimary,
-                ),
-              ),
-              
-              // Day builder for custom styling
-              calendarBuilders: CalendarBuilders(
-                defaultBuilder: (context, day, focusedDay) {
-                  final color = _getDayColor(day);
-                  final events = _getEventsForDay(day);
-                  
-                  return Container(
-                    margin: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: color,
-                      borderRadius: BorderRadius.circular(8),
-                      border: events.isNotEmpty ? Border.all(
-                        color: color ?? Colors.transparent,
-                        width: 2,
-                      ) : null,
-                    ),
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            '${day.day}',
-                            style: TextStyle(
-                              color: color != null ? Colors.white : null,
-                              fontWeight: events.isNotEmpty ? FontWeight.bold : null,
-                            ),
-                          ),
-                          if (events.isNotEmpty)
-                            Text(
-                              MoodData.getMoodEmoji(events.last.mood),
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-                selectedBuilder: (context, day, focusedDay) {
-                  final color = _getDayColor(day);
-                  final events = _getEventsForDay(day);
-                  
-                  return Container(
-                    margin: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: color ?? Theme.of(context).colorScheme.primary,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: Theme.of(context).colorScheme.primary,
-                        width: 2,
-                      ),
-                    ),
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            '${day.day}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          if (events.isNotEmpty)
-                            Text(
-                              MoodData.getMoodEmoji(events.last.mood),
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-                todayBuilder: (context, day, focusedDay) {
-                  final color = _getDayColor(day);
-                  final events = _getEventsForDay(day);
-                  
-                  return Container(
-                    margin: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: color ?? Theme.of(context).colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: Theme.of(context).colorScheme.primary,
-                        width: 2,
-                      ),
-                    ),
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            '${day.day}',
-                            style: TextStyle(
-                              color: color != null ? Colors.white : Theme.of(context).colorScheme.onPrimaryContainer,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          if (events.isNotEmpty)
-                            Text(
-                              MoodData.getMoodEmoji(events.last.mood),
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-              
-              onDaySelected: (selectedDay, focusedDay) {
-                if (!isSameDay(_selectedDay, selectedDay)) {
-                  setState(() {
-                    _selectedDay = selectedDay;
-                    _focusedDay = focusedDay;
-                    _selectedEvents.value = _getEventsForDay(selectedDay);
-                  });
-                }
-              },
-              
-              onFormatChanged: (format) {
-                if (_calendarFormat != format) {
-                  setState(() {
-                    _calendarFormat = format;
-                  });
-                }
-              },
-              
-              onPageChanged: (focusedDay) {
-                _focusedDay = focusedDay;
-              },
-            ),
-          ),
-          
-          const SizedBox(height: 8),
-          
-          // Legend
-          _buildLegend(),
-          
-          const SizedBox(height: 8),
-          
-          // Selected day events
-          Expanded(
-            child: ValueListenableBuilder<List<MoodEntry>>(
-              valueListenable: _selectedEvents,
-              builder: (context, value, _) {
-                return _buildEventsList(value);
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLegend() {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Legend',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 16,
-              runSpacing: 8,
-              children: MoodData.moods.take(5).map((mood) {
-                final color = Color(int.parse(mood['color']!));
-                return Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 16,
-                      height: 16,
-                      decoration: BoxDecoration(
-                        color: color,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      mood['name']!,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                );
-              }).toList(),
-            ),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF0F172A),
+            const Color(0xFF1E293B),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildEventsList(List<MoodEntry> events) {
-    if (events.isEmpty) {
-      return Card(
-        margin: const EdgeInsets.all(8),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.event_busy,
-                  size: 48,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  _selectedDay != null 
-                    ? 'No moods logged on ${_selectedDay!.day}/${_selectedDay!.month}/${_selectedDay!.year}'
-                    : 'No moods logged on selected day',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: Text(
+            'Calendar',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
             ),
           ),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
         ),
-      );
-    }
-
-    return Card(
-      margin: const EdgeInsets.all(8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(
-              _selectedDay != null 
-                ? 'Moods on ${_selectedDay!.day}/${_selectedDay!.month}/${_selectedDay!.year}'
-                : 'Moods on selected day',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
+        body: Column(
+          children: [
+            SlideTransitionAnimation(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        _colorWithOpacity(Colors.white, 0.1),
+                        _colorWithOpacity(Colors.white, 0.05),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: _colorWithOpacity(Colors.white, 0.1),
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: TableCalendar<MoodEntry>(
+                        firstDay: DateTime.utc(2020, 1, 1),
+                        lastDay: DateTime.utc(2030, 12, 31),
+                        focusedDay: _focusedDay,
+                        calendarFormat: _calendarFormat,
+                        eventLoader: _getEventsForDay,
+                        selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                        onDaySelected: (selectedDay, focusedDay) {
+                          setState(() {
+                            _selectedDay = selectedDay;
+                            _focusedDay = focusedDay;
+                          });
+                          _selectedEvents.value = _getEventsForDay(selectedDay);
+                        },
+                        onFormatChanged: (format) {
+                          setState(() {
+                            _calendarFormat = format;
+                          });
+                        },
+                        onPageChanged: (focusedDay) {
+                          _focusedDay = focusedDay;
+                        },
+                        calendarStyle: CalendarStyle(
+                          outsideDaysVisible: false,
+                          defaultTextStyle: const TextStyle(color: Colors.white70),
+                          weekendTextStyle: const TextStyle(color: Colors.white70),
+                          holidayTextStyle: const TextStyle(color: Colors.white70),
+                          selectedDecoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Theme.of(context).primaryColor,
+                                _colorWithOpacity(Theme.of(context).primaryColor, 0.8),
+                              ],
+                            ),
+                            shape: BoxShape.circle,
+                          ),
+                          todayDecoration: BoxDecoration(
+                            color: _colorWithOpacity(Colors.white, 0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          markerDecoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Theme.of(context).primaryColor,
+                                _colorWithOpacity(Theme.of(context).primaryColor, 0.8),
+                              ],
+                            ),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        headerStyle: HeaderStyle(
+                          formatButtonVisible: false,
+                          titleCentered: true,
+                          leftChevronIcon: Icon(
+                            Icons.chevron_left,
+                            color: _colorWithOpacity(Colors.white, 0.8),
+                          ),
+                          rightChevronIcon: Icon(
+                            Icons.chevron_right,
+                            color: _colorWithOpacity(Colors.white, 0.8),
+                          ),
+                          titleTextStyle: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        daysOfWeekStyle: const DaysOfWeekStyle(
+                          weekdayStyle: TextStyle(color: Colors.white70),
+                          weekendStyle: TextStyle(color: Colors.white70),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              itemCount: events.length,
-              separatorBuilder: (context, index) => const Divider(),
-              itemBuilder: (context, index) {
-                final event = events[index];
-                final color = MoodData.getMoodColor(event.mood);
-                
-                return ListTile(
-                  leading: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: color.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: color, width: 2),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ValueListenableBuilder<List<MoodEntry>>(
+                valueListenable: _selectedEvents,
+                builder: (context, events, _) {
+                  return SlideTransitionAnimation(
+                    startOffset: const Offset(0, 0.2),
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: events.length,
+                      itemBuilder: (context, index) {
+                        final event = events[index];
+                        final moodColor = MoodData.getMoodColor(event.mood);
+                        
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                _colorWithOpacity(Colors.white, 0.1),
+                                _colorWithOpacity(Colors.white, 0.05),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: _colorWithOpacity(moodColor, 0.3),
+                            ),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                              child: ListTile(
+                                leading: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        _colorWithOpacity(moodColor, 0.8),
+                                        _colorWithOpacity(moodColor, 0.6),
+                                      ],
+                                    ),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Text(
+                                    MoodData.getMoodEmoji(event.mood),
+                                    style: const TextStyle(fontSize: 20),
+                                  ),
+                                ),
+                                title: Text(
+                                  event.mood,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                subtitle: event.note.isNotEmpty
+                                    ? Text(
+                                        event.note,
+                                        style: TextStyle(
+                                          color: _colorWithOpacity(Colors.white, 0.7),
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                    child: Center(
-                      child: Text(
-                        event.emoji,
-                        style: const TextStyle(fontSize: 20),
-                      ),
-                    ),
-                  ),
-                  title: Text(
-                    event.mood,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: color,
-                    ),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${event.timestamp.hour.toString().padLeft(2, '0')}:${event.timestamp.minute.toString().padLeft(2, '0')}',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                      if (event.note.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          event.note,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ],
-                  ),
-                  contentPadding: EdgeInsets.zero,
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

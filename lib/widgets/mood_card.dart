@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import '../models/mood_entry.dart';
 import '../constants/mood_data.dart';
 import '../utils/date_utils.dart' as date_utils;
+import '../utils/animations.dart';
 
 class MoodCard extends StatelessWidget {
   final MoodEntry entry;
@@ -11,144 +13,141 @@ class MoodCard extends StatelessWidget {
     super.key,
     required this.entry,
     required this.onDelete,
-  });  @override
+  });
+
+  @override
   Widget build(BuildContext context) {
     final moodColor = MoodData.getMoodColor(entry.mood);
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      elevation: 1,
-      surfaceTintColor: Theme.of(context).colorScheme.surfaceTint,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () {
-          // Optional: Add tap functionality to view details
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  _buildMoodIcon(moodColor),
-                  const SizedBox(width: 16),
-                  Expanded(
+    return SlideTransitionAnimation(
+      child: GlowAnimation(
+        glowColor: moodColor.withOpacity(0.1),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                const Color(0xFF1E293B).withOpacity(0.7),
+                const Color(0xFF0F172A).withOpacity(0.7),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: moodColor.withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () {
+                    // Optional: Add tap functionality to view details
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          entry.mood,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w500,
-                            color: moodColor,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          date_utils.DateUtils.formatDate(entry.timestamp),
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton.outlined(
-                    onPressed: () {
-                      // Show delete dialog
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          icon: Icon(
-                            Icons.delete_outline,
-                            color: Theme.of(context).colorScheme.error,
-                            size: 24,
-                          ),
-                          title: Text(
-                            'Delete mood entry',
-                            style: Theme.of(context).textTheme.headlineSmall,
-                          ),
-                          content: Text(
-                            'Are you sure you want to delete this mood entry?',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('Cancel'),
-                            ),
-                            FilledButton(
-                              onPressed: () {
-                                Navigator.pop(context);
-                                onDelete();
-                              },
-                              style: FilledButton.styleFrom(
-                                backgroundColor: Theme.of(context).colorScheme.error,
-                                foregroundColor: Theme.of(context).colorScheme.onError,
+                        Row(
+                          children: [
+                            _buildMoodIcon(moodColor),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    entry.mood,
+                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                      shadows: [
+                                        Shadow(
+                                          color: moodColor.withOpacity(0.5),
+                                          blurRadius: 8,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    date_utils.DateUtils.formatDate(entry.timestamp),
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              child: const Text('Delete'),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline, color: Colors.white60),
+                              onPressed: onDelete,
                             ),
                           ],
                         ),
-                      );
-                    },
-                    icon: Icon(
-                      Icons.more_vert,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                    tooltip: 'More options',
-                    style: IconButton.styleFrom(
-                      side: BorderSide(
-                        color: Theme.of(context).colorScheme.outline,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              if (entry.note.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: moodColor.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: moodColor.withOpacity(0.2),
-                      width: 1,
-                    ),
-                  ),
-                  child: Text(
-                    entry.note,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      height: 1.5,
+                        if (entry.note.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.1),
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              entry.note,
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Colors.white70,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ),
-              ],
-            ],
+              ),
+            ),
           ),
         ),
       ),
     );
-  }  Widget _buildMoodIcon(Color moodColor) {
+  }
+
+  Widget _buildMoodIcon(Color color) {
     return Container(
-      width: 48,
-      height: 48,
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: moodColor.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: moodColor.withOpacity(0.2),
-          width: 1,
+        gradient: LinearGradient(
+          colors: [
+            color.withOpacity(0.8),
+            color.withOpacity(0.6),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.3),
+            blurRadius: 8,
+            spreadRadius: 0,
+          ),
+        ],
       ),
-      child: Center(
-        child: Text(
-          entry.emoji,
-          style: const TextStyle(fontSize: 24),
-        ),
+      child: Text(
+        MoodData.getMoodEmoji(entry.mood),
+        style: const TextStyle(fontSize: 24),
       ),
     );
   }

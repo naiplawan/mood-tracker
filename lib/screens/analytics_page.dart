@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'dart:ui';
 import '../models/mood_entry.dart';
 import '../services/analytics_service.dart';
 import '../constants/mood_data.dart';
+import '../utils/animations.dart';
+import '../services/theme_service.dart';
 
 class AnalyticsPage extends StatefulWidget {
   final List<MoodEntry> moodEntries;
@@ -21,57 +24,139 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     final insights = AnalyticsService.getMoodInsights(widget.moodEntries);
     final recentEntries = AnalyticsService.getEntriesForLastDays(widget.moodEntries, selectedDays);
     
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mood Analytics'),
-        elevation: 0,
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        foregroundColor: Theme.of(context).colorScheme.onSurface,
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF0F172A),
+            const Color(0xFF1E293B),
+          ],
+        ),
       ),
-      body: widget.moodEntries.isEmpty 
-        ? _buildEmptyState()
-        : SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildInsightsCards(insights),
-                const SizedBox(height: 24),
-                _buildTimeRangeSelector(),
-                const SizedBox(height: 16),
-                _buildMoodTrendChart(recentEntries),
-                const SizedBox(height: 24),
-                _buildMoodDistributionChart(),
-                const SizedBox(height: 24),
-                _buildMoodFrequencyList(),
-              ],
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: Text(
+            'Mood Analytics',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
             ),
           ),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+        ),
+        body: widget.moodEntries.isEmpty 
+          ? _buildEmptyState()
+          : SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SlideTransitionAnimation(
+                    delay: const Duration(milliseconds: 200),
+                    child: _buildInsightsCards(insights),
+                  ),
+                  const SizedBox(height: 24),
+                  SlideTransitionAnimation(
+                    delay: const Duration(milliseconds: 400),
+                    child: _buildTimeRangeSelector(),
+                  ),
+                  const SizedBox(height: 24),
+                  SlideTransitionAnimation(
+                    delay: const Duration(milliseconds: 600),
+                    child: _buildMoodTrendChart(recentEntries),
+                  ),
+                  const SizedBox(height: 24),
+                  SlideTransitionAnimation(
+                    delay: const Duration(milliseconds: 800),
+                    child: _buildMoodDistributionChart(),
+                  ),
+                  const SizedBox(height: 24),
+                  SlideTransitionAnimation(
+                    delay: const Duration(milliseconds: 1000),
+                    child: _buildMoodFrequencyList(),
+                  ),
+                ],
+              ),
+            ),
+      ),
     );
   }
 
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.analytics_outlined,
-            size: 64,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No Data to Analyze',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+      child: SlideTransitionAnimation(
+        child: Container(
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.1),
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Start logging your moods to see analytics',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.analytics_outlined,
+                size: 64,
+                color: Theme.of(context).primaryColor.withOpacity(0.7),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'No Data Yet',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Start tracking your moods to see analytics',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.white70,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInsightsCards(Map<String, dynamic> insights) {
+    return SizedBox(
+      height: 140,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        children: [
+          _buildInsightCard(
+            'Most Common Mood',
+            insights['mostCommonMood'] ?? 'N/A',
+            Icons.mood,
+            ThemeService.primaryGradient,
+          ),
+          _buildInsightCard(
+            'Average Mood',
+            insights['averageMood'] ?? 'N/A',
+            Icons.analytics,
+            ThemeService.secondaryGradient,
+          ),
+          _buildInsightCard(
+            'Total Entries',
+            '${widget.moodEntries.length}',
+            Icons.calendar_today,
+            LinearGradient(
+              colors: [Colors.purple.shade400, Colors.blue.shade400],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
           ),
         ],
@@ -79,78 +164,66 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     );
   }
 
-  Widget _buildInsightsCards(Map<String, dynamic> insights) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Quick Insights',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w600,
+  Widget _buildInsightCard(String title, String value, IconData icon, Gradient gradient) {
+    return Container(
+      width: 160,
+      margin: const EdgeInsets.only(right: 16),
+      child: GlowAnimation(
+        glowColor: gradient.colors.first.withOpacity(0.2),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.white.withOpacity(0.1),
+                Colors.white.withOpacity(0.05),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.1),
+            ),
           ),
-        ),
-        const SizedBox(height: 12),
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 1.5,
-          children: [
-            _buildInsightCard(
-              'Total Entries',
-              insights['totalEntries'].toString(),
-              Icons.edit_note,
-              Colors.blue,
-            ),
-            _buildInsightCard(
-              'Average Mood',
-              insights['averageMood'],
-              Icons.trending_up,
-              Colors.green,
-            ),
-            _buildInsightCard(
-              'Most Frequent',
-              insights['mostFrequentMood'],
-              Icons.favorite,
-              Colors.red,
-            ),
-            _buildInsightCard(
-              'Current Streak',
-              '${insights['streak']} days',
-              Icons.local_fire_department,
-              Colors.orange,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInsightCard(String title, String value, IconData icon, Color color) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: color,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: gradient,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(icon, color: Colors.white, size: 24),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      value,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              textAlign: TextAlign.center,
             ),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.bodySmall,
-              textAlign: TextAlign.center,
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -164,6 +237,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           'Time Range',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w600,
+            color: Colors.white,
           ),
         ),
         const SizedBox(height: 8),
@@ -175,13 +249,20 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               return Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: FilterChip(
-                  label: Text('${days} days'),
+                  label: Text(
+                    '$days days',
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : Colors.white70,
+                    ),
+                  ),
                   selected: isSelected,
                   onSelected: (selected) {
                     setState(() {
                       selectedDays = days;
                     });
                   },
+                  backgroundColor: Colors.white10,
+                  selectedColor: Theme.of(context).primaryColor,
                 ),
               );
             }).toList(),
@@ -216,6 +297,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               'Mood Trend',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
+                color: Colors.white,
               ),
             ),
             const SizedBox(height: 16),
@@ -232,15 +314,15 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                         getTitlesWidget: (value, meta) {
                           switch (value.toInt()) {
                             case 1:
-                              return const Text('😢', style: TextStyle(fontSize: 16));
+                              return const Text('😢', style: TextStyle(fontSize: 16, color: Colors.white));
                             case 2:
-                              return const Text('😔', style: TextStyle(fontSize: 16));
+                              return const Text('😔', style: TextStyle(fontSize: 16, color: Colors.white));
                             case 3:
-                              return const Text('😐', style: TextStyle(fontSize: 16));
+                              return const Text('😐', style: TextStyle(fontSize: 16, color: Colors.white));
                             case 4:
-                              return const Text('😊', style: TextStyle(fontSize: 16));
+                              return const Text('😊', style: TextStyle(fontSize: 16, color: Colors.white));
                             case 5:
-                              return const Text('🤩', style: TextStyle(fontSize: 16));
+                              return const Text('🤩', style: TextStyle(fontSize: 16, color: Colors.white));
                             default:
                               return const Text('');
                           }
@@ -303,6 +385,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               'Mood Distribution',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
+                color: Colors.white,
               ),
             ),
             const SizedBox(height: 16),
@@ -337,6 +420,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               'Mood Frequency',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
+                color: Colors.white,
               ),
             ),
             const SizedBox(height: 16),
@@ -357,12 +441,12 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Text(MoodData.getMoodEmoji(entry.key)),
+                    Text(MoodData.getMoodEmoji(entry.key), style: TextStyle(color: Colors.white)),
                     const SizedBox(width: 8),
-                    Expanded(child: Text(entry.key)),
-                    Text('${entry.value} times'),
+                    Expanded(child: Text(entry.key, style: TextStyle(color: Colors.white))),
+                    Text('${entry.value} times', style: TextStyle(color: Colors.white)),
                     const SizedBox(width: 8),
-                    Text('(${percentage.toStringAsFixed(1)}%)'),
+                    Text('(${percentage.toStringAsFixed(1)}%)', style: TextStyle(color: Colors.white)),
                   ],
                 ),
               );

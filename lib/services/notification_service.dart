@@ -1,5 +1,8 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tz;
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -9,14 +12,13 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
 
   Future<void> initialize() async {
-    // Request notification permission
-    await Permission.notification.request();
+    tz.initializeTimeZones();
 
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosSettings = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
     );
 
     const initSettings = InitializationSettings(
@@ -27,13 +29,17 @@ class NotificationService {
     await _notifications.initialize(initSettings);
   }
 
-  Future<void> scheduleDailyReminder({
-    required int id,
-    required String title,
-    required String body,
-    required int hour,
-    required int minute,
-  }) async {
+  Future<bool> requestPermission() async {
+    final status = await Permission.notification.request();
+    return status.isGranted;
+  }
+
+  Future<void> scheduleDailyNotification(TimeOfDay time) async {
+    final status = await Permission.notification.status;
+    if (!status.isGranted) {
+      return;
+    }
+
     const androidDetails = AndroidNotificationDetails(
       'mood_reminders',
       'Mood Check-in Reminders',
@@ -49,26 +55,40 @@ class NotificationService {
       presentSound: true,
     );
 
-    const notificationDetails = NotificationDetails(
+    const details = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );
 
-    // For now, we'll show an immediate notification as an example
-    // In a real app, you'd use proper scheduling with timezone support
-    await _notifications.show(
-      id,
-      title,
-      body,
-      notificationDetails,
+    await _notifications.zonedSchedule(
+      0,
+      'Time for a Mood Check-in',
+      'How are you feeling right now?',
+      _nextInstanceOfTime(time),
+      details,      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      matchDateTimeComponents: DateTimeComponents.time,
     );
-  }
-
-  Future<void> cancelNotification(int id) async {
-    await _notifications.cancel(id);
   }
 
   Future<void> cancelAllNotifications() async {
     await _notifications.cancelAll();
+  }
+
+  tz.TZDateTime _nextInstanceOfTime(TimeOfDay time) {
+    final now = tz.TZDateTime.now(tz.local);
+    var scheduledDate = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      time.hour,
+      time.minute,
+    );
+
+    if (scheduledDate.isBefore(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    }
+
+    return scheduledDate;
   }
 }

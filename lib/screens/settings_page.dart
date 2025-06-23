@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:ui';
 import '../services/theme_service.dart';
 import '../services/notification_service.dart';
 import '../services/export_service.dart';
 import '../models/mood_entry.dart';
+import '../utils/animations.dart';
 
 class SettingsPage extends StatefulWidget {
   final List<MoodEntry> moodEntries;
@@ -24,9 +26,9 @@ class _SettingsPageState extends State<SettingsPage> {
     super.initState();
     _loadSettings();
   }
+
   Future<void> _loadSettings() async {
     // For now, we'll assume reminders are disabled by default
-    // In a real app, you'd want to store this preference
     setState(() {
       _remindersEnabled = false;
     });
@@ -34,78 +36,155 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-        elevation: 0,
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        foregroundColor: Theme.of(context).colorScheme.onSurface,
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF0F172A),
+            const Color(0xFF1E293B),
+          ],
+        ),
       ),
-      body: ListView(
-        children: [
-          _buildThemeSection(),
-          const Divider(),
-          _buildNotificationSection(),
-          const Divider(),
-          _buildDataSection(),
-          const Divider(),
-          _buildAboutSection(),
-        ],
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: Text(
+            'Settings',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+        ),
+        body: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            SlideTransitionAnimation(
+              delay: const Duration(milliseconds: 200),
+              child: _buildSection(
+                title: 'Theme',
+                icon: Icons.palette_outlined,
+                gradient: ThemeService.primaryGradient,
+                child: _buildThemeSection(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SlideTransitionAnimation(
+              delay: const Duration(milliseconds: 400),
+              child: _buildSection(
+                title: 'Notifications',
+                icon: Icons.notifications_outlined,
+                gradient: ThemeService.secondaryGradient,
+                child: _buildNotificationSection(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SlideTransitionAnimation(
+              delay: const Duration(milliseconds: 600),
+              child: _buildSection(
+                title: 'Data Management',
+                icon: Icons.save_outlined,
+                gradient: LinearGradient(
+                  colors: [Colors.purple.shade400, Colors.blue.shade400],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                child: _buildDataSection(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSection({
+    required String title,
+    required IconData icon,
+    required Gradient gradient,
+    required Widget child,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.white.withOpacity(0.1),
+            Colors.white.withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.1),
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        gradient: gradient,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(icon, color: Colors.white, size: 24),
+                    ),
+                    const SizedBox(width: 16),
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(color: Colors.white10),
+              child,
+            ],
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildThemeSection() {
     return Consumer<ThemeService>(
-      builder: (context, themeService, child) {
+      builder: (context, themeService, _) {
         return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                'Appearance',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+            ListTile(
+              title: const Text(
+                'Dark Mode',
+                style: TextStyle(color: Colors.white),
               ),
-            ),
-            RadioListTile<ThemeMode>(
-              title: const Text('Light Theme'),
-              subtitle: const Text('Use light colors'),
-              value: ThemeMode.light,
-              groupValue: themeService.themeMode,
-              onChanged: (ThemeMode? value) {
-                if (value != null) {
-                  themeService.setThemeMode(value);
-                }
-              },
-              secondary: const Icon(Icons.light_mode),
-            ),
-            RadioListTile<ThemeMode>(
-              title: const Text('Dark Theme'),
-              subtitle: const Text('Use dark colors'),
-              value: ThemeMode.dark,
-              groupValue: themeService.themeMode,
-              onChanged: (ThemeMode? value) {
-                if (value != null) {
-                  themeService.setThemeMode(value);
-                }
-              },
-              secondary: const Icon(Icons.dark_mode),
-            ),
-            RadioListTile<ThemeMode>(
-              title: const Text('System Theme'),
-              subtitle: const Text('Follow system settings'),
-              value: ThemeMode.system,
-              groupValue: themeService.themeMode,
-              onChanged: (ThemeMode? value) {
-                if (value != null) {
-                  themeService.setThemeMode(value);
-                }
-              },
-              secondary: const Icon(Icons.auto_mode),
+              subtitle: Text(
+                'Enable dark theme',
+                style: TextStyle(color: Colors.white70),
+              ),
+              trailing: Switch(
+                value: themeService.isDarkMode,
+                onChanged: (value) async {
+                  await themeService.setThemeMode(
+                    value ? ThemeMode.dark : ThemeMode.light,
+                  );
+                },
+                activeColor: Theme.of(context).primaryColor,
+              ),
             ),
           ],
         );
@@ -115,317 +194,111 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Widget _buildNotificationSection() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text(
-            'Notifications',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.primary,
-            ),
+        ListTile(
+          title: const Text(
+            'Daily Reminders',
+            style: TextStyle(color: Colors.white),
+          ),
+          subtitle: Text(
+            'Get reminded to log your mood',
+            style: TextStyle(color: Colors.white70),
+          ),
+          trailing: Switch(
+            value: _remindersEnabled,
+            onChanged: (value) async {
+              if (value) {
+                final granted = await _notificationService.requestPermission();
+                if (!granted) {
+                  return;
+                }
+              }
+              setState(() => _remindersEnabled = value);
+              if (value) {
+                await _notificationService.scheduleDailyNotification(_reminderTime);
+              } else {
+                await _notificationService.cancelAllNotifications();
+              }
+            },
+            activeColor: Theme.of(context).primaryColor,
           ),
         ),
-        SwitchListTile(
-          title: const Text('Daily Reminders'),
-          subtitle: const Text('Get reminded to log your mood'),
-          value: _remindersEnabled,
-          onChanged: (bool value) {
-            setState(() {
-              _remindersEnabled = value;
-            });
-            _toggleReminders(value);
-          },
-          secondary: const Icon(Icons.notifications),
-        ),
-        if (_remindersEnabled)
+        if (_remindersEnabled) ...[
           ListTile(
-            title: const Text('Reminder Time'),
-            subtitle: Text('Daily reminder at ${_reminderTime.format(context)}'),
-            trailing: const Icon(Icons.access_time),
-            onTap: _selectReminderTime,
+            title: const Text(
+              'Reminder Time',
+              style: TextStyle(color: Colors.white),
+            ),
+            subtitle: Text(
+              _reminderTime.format(context),
+              style: TextStyle(color: Colors.white70),
+            ),
+            onTap: () async {
+              final TimeOfDay? picked = await showTimePicker(
+                context: context,
+                initialTime: _reminderTime,
+              );
+              if (picked != null && picked != _reminderTime) {
+                setState(() => _reminderTime = picked);
+                await _notificationService.scheduleDailyNotification(picked);
+              }
+            },
           ),
+        ],
       ],
     );
   }
 
   Widget _buildDataSection() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text(
-            'Data Management',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.primary,
+        ListTile(
+          title: const Text(
+            'Export Data',
+            style: TextStyle(color: Colors.white),
+          ),
+          subtitle: Text(
+            'Save your mood data as CSV',
+            style: TextStyle(color: Colors.white70),
+          ),
+          trailing: Container(
+            decoration: BoxDecoration(
+              gradient: ThemeService.primaryGradient,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => ExportService.exportToCSV(widget.moodEntries),
+                borderRadius: BorderRadius.circular(8),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Text(
+                    'Export',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
         ),
         ListTile(
-          title: const Text('Export Data'),
-          subtitle: const Text('Export your mood data to CSV'),
-          leading: const Icon(Icons.file_download),
-          trailing: const Icon(Icons.arrow_forward_ios),
-          onTap: () => _exportData(context),
-        ),
-        ListTile(
-          title: const Text('Export Summary'),
-          subtitle: const Text('Export a detailed summary report'),
-          leading: const Icon(Icons.summarize),
-          trailing: const Icon(Icons.arrow_forward_ios),
-          onTap: () => _exportSummary(context),
-        ),
-        ListTile(
-          title: Text(
-            'Clear All Data',
-            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          title: const Text(
+            'Privacy Policy',
+            style: TextStyle(color: Colors.white),
           ),
-          subtitle: const Text('Permanently delete all mood entries'),
-          leading: Icon(
-            Icons.delete_forever,
-            color: Theme.of(context).colorScheme.error,
+          subtitle: Text(
+            'Read our privacy policy',
+            style: TextStyle(color: Colors.white70),
           ),
-          trailing: const Icon(Icons.arrow_forward_ios),
-          onTap: _showClearDataDialog,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAboutSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text(
-            'About',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-          ),
-        ),
-        const ListTile(
-          title: Text('Version'),
-          subtitle: Text('1.0.0'),
-          leading: Icon(Icons.info),
-        ),
-        const ListTile(
-          title: Text('Developer'),
-          subtitle: Text('Your Name'),
-          leading: Icon(Icons.person),
-        ),
-        ListTile(
-          title: const Text('Privacy Policy'),
-          leading: const Icon(Icons.privacy_tip),
-          trailing: const Icon(Icons.arrow_forward_ios),
           onTap: () {
-            _showPrivacyDialog();
+            // TODO: Add privacy policy
           },
         ),
       ],
-    );
-  }
-
-  Future<void> _selectReminderTime() async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: _reminderTime,
-    );
-    
-    if (picked != null && picked != _reminderTime) {
-      setState(() {
-        _reminderTime = picked;
-      });
-      
-      if (_remindersEnabled) {
-        // Reschedule with new time
-        await _notificationService.cancelNotification(0);
-        await _notificationService.scheduleDailyReminder(
-          id: 0,
-          title: '💭 Time for a mood check!',
-          body: 'How are you feeling today? Take a moment to log your mood.',
-          hour: _reminderTime.hour,
-          minute: _reminderTime.minute,
-        );
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Reminder time updated to ${_reminderTime.format(context)}'),
-            ),
-          );
-        }
-      }
-    }
-  }
-
-  Future<void> _toggleReminders(bool enabled) async {
-    if (enabled) {
-      await _notificationService.scheduleDailyReminder(
-        id: 0,
-        title: '💭 Time for a mood check!',
-        body: 'How are you feeling today? Take a moment to log your mood.',
-        hour: _reminderTime.hour,
-        minute: _reminderTime.minute,
-      );
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Daily reminders enabled'),
-          ),
-        );
-      }
-    } else {
-      await _notificationService.cancelNotification(0);
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Daily reminders disabled'),
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _exportData(BuildContext context) async {
-    if (widget.moodEntries.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No data to export'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    try {
-      await ExportService.shareData(widget.moodEntries, context);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Export failed: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _exportSummary(BuildContext context) async {
-    if (widget.moodEntries.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No data to export'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    try {
-      final result = await ExportService.exportSummaryReport(widget.moodEntries);
-      if (result['success'] && mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.green),
-                SizedBox(width: 8),
-                Text('Summary Exported'),
-              ],
-            ),
-            content: Text('Summary report saved to Documents folder.'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Export failed: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  void _showClearDataDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.warning, color: Colors.red),
-            SizedBox(width: 8),
-            Text('Clear All Data'),
-          ],
-        ),
-        content: const Text(
-          'This will permanently delete all your mood entries. This action cannot be undone.\n\nAre you sure you want to continue?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              // This would need to be implemented in the parent widget
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Clear data functionality needs to be implemented'),
-                  backgroundColor: Colors.orange,
-                ),
-              );
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Clear All'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showPrivacyDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Privacy Policy'),
-        content: const SingleChildScrollView(
-          child: Text(
-            'Mood Notes Privacy Policy\n\n'
-            '1. Data Storage: All your mood data is stored locally on your device. We do not collect or store any personal information on external servers.\n\n'
-            '2. Data Usage: Your mood entries are used solely for providing you with insights and analytics within the app.\n\n'
-            '3. Data Sharing: We do not share your data with any third parties. Your privacy is our priority.\n\n'
-            '4. Data Export: You can export your data at any time through the settings page.\n\n'
-            '5. Data Deletion: You can delete all your data at any time through the settings page.\n\n'
-            'For any questions about this privacy policy, please contact us.',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
     );
   }
 }
