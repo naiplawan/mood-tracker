@@ -1,27 +1,92 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/mood_entry.dart';
-import '../services/mood_storage.dart';
 import '../widgets/add_mood_dialog.dart';
 import '../widgets/mood_card.dart';
 import '../widgets/empty_state_widget.dart';
 import '../services/theme_service.dart';
 import '../utils/animations.dart';
+import '../viewmodels/view_models.dart';
 
 class MoodHomePage extends StatefulWidget {
-  final List<MoodEntry> moodEntries;
-  final VoidCallback onMoodUpdated;
-
-  const MoodHomePage({
-    super.key,
-    required this.moodEntries,
-    required this.onMoodUpdated,
-  });
+  const MoodHomePage({super.key});
 
   @override
   State<MoodHomePage> createState() => _MoodHomePageState();
 }
 
 class _MoodHomePageState extends State<MoodHomePage> {
+  Widget _buildFloatingActionButton() {
+    return GlowAnimation(
+      glowColor: Theme.of(context).primaryColor.withOpacity(0.3),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: ThemeService.primaryGradient,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Theme.of(context).primaryColor.withOpacity(0.3),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: _showAddMoodDialog,
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.add,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Add Mood',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showAddMoodDialog() async {
+    await showDialog<Map<String, String>>(
+      context: context,
+      builder: (context) => AddMoodDialog(
+        onAddMood: (mood, emoji, note) async {
+          final moodViewModel = context.read<MoodViewModel>();
+          final newEntry = MoodEntry(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            mood: mood,
+            emoji: emoji,
+            note: note,
+            timestamp: DateTime.now(),
+          );
+          
+          await moodViewModel.addMoodEntry(newEntry);
+        },
+      ),
+    );
+  }
+
+  Future<void> _deleteMoodEntry(MoodEntry entry) async {
+    final moodViewModel = context.read<MoodViewModel>();
+    await moodViewModel.deleteMoodEntry(entry);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -51,102 +116,42 @@ class _MoodHomePageState extends State<MoodHomePage> {
         body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: widget.moodEntries.isEmpty
-                ? const EmptyStateWidget()
-                : ListView.builder(
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: widget.moodEntries.length,
-                    itemBuilder: (context, index) {
-                      final entry = widget.moodEntries[index];
-                      return MoodCard(
-                        entry: entry,
-                        onDelete: () => _deleteMoodEntry(entry),
+            child: Consumer<MoodViewModel>(
+              builder: (context, moodViewModel, child) {
+                if (moodViewModel.isLoading) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  );
+                }
+                
+                if (moodViewModel.hasError) {
+                  return Center(
+                    child: Text(
+                      'Error: ${moodViewModel.errorMessage}',
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  );
+                }
+                
+                return moodViewModel.moodEntries.isEmpty
+                    ? const EmptyStateWidget()
+                    : ListView.builder(
+                        physics: const BouncingScrollPhysics(),
+                        itemCount: moodViewModel.moodEntries.length,
+                        itemBuilder: (context, index) {
+                          final entry = moodViewModel.moodEntries[index];
+                          return MoodCard(
+                            entry: entry,
+                            onDelete: () => _deleteMoodEntry(entry),
+                          );
+                        },
                       );
-                    },
-                  ),
+              },
+            ),
           ),
         ),
         floatingActionButton: _buildFloatingActionButton(),
       ),
     );
-  }
-
-  Widget _buildFloatingActionButton() {
-    return GlowAnimation(
-      glowColor: Theme.of(context).primaryColor.withOpacity(0.3),
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: ThemeService.primaryGradient,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Theme.of(context).primaryColor.withOpacity(0.3),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: _showAddMoodDialog,
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.add,
-                    color: Colors.white.withOpacity(0.9),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Add Mood',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showAddMoodDialog() async {
-    final result = await showDialog<Map<String, String>>(
-      context: context,
-      builder: (context) => AddMoodDialog(
-        onAddMood: (mood, emoji, note) async {          final newEntry = MoodEntry(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
-            mood: mood,
-            emoji: emoji,
-            note: note,
-            timestamp: DateTime.now(),
-          );
-          
-          final updatedEntries = [newEntry, ...widget.moodEntries];
-          await MoodStorage.saveMoodEntries(updatedEntries);
-          widget.onMoodUpdated();
-        },
-      ),
-    );
-  }
-
-  Future<void> _deleteMoodEntry(MoodEntry entry) async {
-    final index = widget.moodEntries.indexOf(entry);
-    if (index == -1) return;
-    
-    try {
-      final updatedEntries = List<MoodEntry>.from(widget.moodEntries)..removeAt(index);
-      await MoodStorage.saveMoodEntries(updatedEntries);
-      widget.onMoodUpdated();
-    } catch (e) {
-      // Show error
-    }
   }
 }

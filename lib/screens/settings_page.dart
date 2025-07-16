@@ -6,6 +6,7 @@ import '../services/notification_service.dart';
 import '../services/export_service.dart';
 import '../models/mood_entry.dart';
 import '../utils/animations.dart';
+import '../viewmodels/view_models.dart';
 
 class SettingsPage extends StatefulWidget {
   final List<MoodEntry> moodEntries;
@@ -269,7 +270,10 @@ class _SettingsPageState extends State<SettingsPage> {
             child: Material(
               color: Colors.transparent,
               child: InkWell(
-                onTap: () => ExportService.exportToCSV(widget.moodEntries),
+                onTap: () {
+                  final moodViewModel = context.read<MoodViewModel>();
+                  ExportService.exportToCSV(moodViewModel.moodEntries);
+                },
                 borderRadius: BorderRadius.circular(8),
                 child: const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
