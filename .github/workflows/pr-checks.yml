@@ -1,0 +1,135 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  FLUTTER_VERSION: '3.19.0'
+
+jobs:
+  # Quick validation for PRs
+  validate:
+    name: Quick Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        cache: true
+        
+    - name: Get dependencies
+      run: flutter pub get
+      
+    - name: Check formatting
+      run: dart format --output=none --set-exit-if-changed .
+      
+    - name: Analyze code
+      run: flutter analyze --fatal-infos
+      
+    - name: Run tests
+      run: flutter test --no-coverage --reporter=compact
+      
+    - name: Check for breaking changes in API
+      run: |
+        # Check if any public API changes were made
+        git diff origin/main...HEAD --name-only | grep -E "lib/.*\.dart$" | while read file; do
+          if git diff origin/main...HEAD "$file" | grep -E "^\+.*class |^\+.*enum |^\+.*abstract |^\-.*class |^\-.*enum |^\-.*abstract "; then
+            echo "⚠️  Potential breaking changes detected in $file"
+            echo "Please ensure backward compatibility or update version accordingly"
+          fi
+        done
+
+  # Check dependencies for security issues
+  dependency-check:
+    name: Dependency Security
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        cache: true
+        
+    - name: Get dependencies
+      run: flutter pub get
+      
+    - name: Check for vulnerable dependencies
+      run: flutter pub audit
+      
+    - name: Check for outdated dependencies
+      run: flutter pub outdated
+
+  # PR size and complexity check
+  pr-size:
+    name: PR Size Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Check PR size
+      run: |
+        FILES_CHANGED=$(git diff --name-only origin/main...HEAD | wc -l)
+        LINES_CHANGED=$(git diff --stat origin/main...HEAD | tail -1 | grep -o '[0-9]\+ insertions\|[0-9]\+ deletions' | grep -o '[0-9]\+' | paste -sd+ | bc)
+        
+        echo "Files changed: $FILES_CHANGED"
+        echo "Lines changed: $LINES_CHANGED"
+        
+        if [ $FILES_CHANGED -gt 20 ]; then
+          echo "⚠️  Large PR: $FILES_CHANGED files changed (consider splitting)"
+        fi
+        
+        if [ $LINES_CHANGED -gt 500 ]; then
+          echo "⚠️  Large PR: $LINES_CHANGED lines changed (consider splitting)"
+        fi
+        
+        # Fail if PR is too large
+        if [ $FILES_CHANGED -gt 50 ] || [ $LINES_CHANGED -gt 1000 ]; then
+          echo "❌ PR is too large for effective review"
+          exit 1
+        fi
+
+  # Check for test coverage impact
+  coverage-check:
+    name: Coverage Impact
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout PR
+      uses: actions/checkout@v4
+      
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        cache: true
+        
+    - name: Get dependencies
+      run: flutter pub get
+      
+    - name: Run tests with coverage
+      run: flutter test --coverage
+      
+    - name: Check coverage threshold
+      run: |
+        # Extract coverage percentage
+        if [ -f coverage/lcov.info ]; then
+          COVERAGE=$(dart pub global activate coverage && dart pub global run coverage:format_coverage --lcov --in=coverage --out=coverage/lcov.info --packages=.packages --report-on=lib)
+          echo "Current coverage: $COVERAGE%"
+          
+          # You can add logic here to compare with main branch coverage
+          # and fail if coverage drops significantly
+        else
+          echo "⚠️  No coverage report generated"
+        fi

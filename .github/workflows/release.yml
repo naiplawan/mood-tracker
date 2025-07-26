@@ -1,0 +1,215 @@
+name: Release Pipeline
+
+on:
+  release:
+    types: [published]
+
+env:
+  FLUTTER_VERSION: '3.19.0'
+  JAVA_VERSION: '17'
+
+jobs:
+  # Build and sign Android release
+  android-release:
+    name: Android Release Build
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: ${{ env.JAVA_VERSION }}
+        
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        cache: true
+        
+    - name: Get dependencies
+      run: flutter pub get
+      
+    - name: Setup Firebase config
+      run: |
+        echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > android/app/google-services.json
+        
+    - name: Setup signing
+      run: |
+        echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/keystore.jks
+        
+        cat > android/key.properties << EOF
+        storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+        keyPassword=${{ secrets.KEY_PASSWORD }}
+        keyAlias=${{ secrets.KEY_ALIAS }}
+        storeFile=keystore.jks
+        EOF
+        
+    - name: Extract version from tag
+      id: version
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        VERSION_CODE=$(echo $VERSION | sed 's/[^0-9]*//g')
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
+        
+    - name: Build signed APK
+      run: |
+        flutter build apk --release \
+          --build-name=${{ steps.version.outputs.version }} \
+          --build-number=${{ steps.version.outputs.version_code }}
+          
+    - name: Build signed App Bundle
+      run: |
+        flutter build appbundle --release \
+          --build-name=${{ steps.version.outputs.version }} \
+          --build-number=${{ steps.version.outputs.version_code }}
+          
+    - name: Upload APK to GitHub Release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: build/app/outputs/flutter-apk/app-release.apk
+        asset_name: mood-tracker-${{ steps.version.outputs.version }}.apk
+        asset_content_type: application/vnd.android.package-archive
+        
+    - name: Deploy to Google Play Console (Internal Testing)
+      uses: r0adkll/upload-google-play@v1
+      with:
+        serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT }}
+        packageName: com.example.mood_notes_app
+        releaseFiles: build/app/outputs/bundle/release/app-release.aab
+        track: internal
+        status: completed
+        inAppUpdatePriority: 2
+        whatsNewDirectory: whatsnew/
+        
+  # Build iOS release
+  ios-release:
+    name: iOS Release Build
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        cache: true
+        
+    - name: Get dependencies
+      run: flutter pub get
+      
+    - name: Setup Firebase config
+      run: |
+        echo "${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}" | base64 -d > ios/Runner/GoogleService-Info.plist
+        
+    - name: Import Code-Signing Certificates
+      uses: Apple-Actions/import-codesign-certs@v2
+      with:
+        p12-file-base64: ${{ secrets.IOS_CERTIFICATES_P12 }}
+        p12-password: ${{ secrets.IOS_CERTIFICATES_PASSWORD }}
+        
+    - name: Download Provisioning Profiles
+      uses: Apple-Actions/download-provisioning-profiles@v3
+      with:
+        bundle-id: com.example.moodNotesApp
+        issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
+        api-key-id: ${{ secrets.APPSTORE_KEY_ID }}
+        api-private-key: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+        
+    - name: Extract version from tag
+      id: version
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        VERSION_CODE=$(echo $VERSION | sed 's/[^0-9]*//g')
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
+        
+    - name: Build iOS
+      run: |
+        flutter build ios --release \
+          --build-name=${{ steps.version.outputs.version }} \
+          --build-number=${{ steps.version.outputs.version_code }}
+          
+    - name: Build IPA
+      run: |
+        cd ios
+        xcodebuild -workspace Runner.xcworkspace \
+          -scheme Runner \
+          -configuration Release \
+          -archivePath Runner.xcarchive \
+          archive
+          
+        xcodebuild -exportArchive \
+          -archivePath Runner.xcarchive \
+          -exportPath ../build/ios/ipa \
+          -exportOptionsPlist ExportOptions.plist
+          
+    - name: Upload to TestFlight
+      uses: Apple-Actions/upload-testflight-build@v1
+      with:
+        app-path: build/ios/ipa/Runner.ipa
+        issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
+        api-key-id: ${{ secrets.APPSTORE_KEY_ID }}
+        api-private-key: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+
+  # Create release notes and notifications
+  post-release:
+    name: Post Release Actions
+    runs-on: ubuntu-latest
+    needs: [android-release, ios-release]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # Extract changes since last release
+        LAST_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+        if [ -n "$LAST_TAG" ]; then
+          CHANGELOG=$(git log $LAST_TAG..HEAD --pretty=format:"- %s" --no-merges)
+        else
+          CHANGELOG="Initial release"
+        fi
+        
+        echo "changelog<<EOF" >> $GITHUB_OUTPUT
+        echo "$CHANGELOG" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        
+    - name: Update release notes
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { owner, repo } = context.repo;
+          const release = await github.rest.repos.getReleaseByTag({
+            owner,
+            repo,
+            tag: context.ref.replace('refs/tags/', '')
+          });
+          
+          const changelog = `${{ steps.changelog.outputs.changelog }}`;
+          const updatedBody = release.data.body + '\n\n## Changelog\n' + changelog;
+          
+          await github.rest.repos.updateRelease({
+            owner,
+            repo,
+            release_id: release.data.id,
+            body: updatedBody
+          });
+          
+    - name: Notify team
+      run: |
+        echo "🚀 Release ${{ github.event.release.tag_name }} has been deployed!"
+        echo "- Android: Available on Google Play Internal Testing"
+        echo "- iOS: Available on TestFlight"
+        # Add Slack/Discord/email notifications here if needed
