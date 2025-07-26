@@ -80,18 +80,16 @@ class MoodNoteApp extends StatelessWidget {
       providers: [
         ...providers,
         ChangeNotifierProxyProvider<MoodViewModel, NavigationViewModel>(
-          create: (context) => NavigationViewModel(
-            Provider.of<MoodViewModel>(context, listen: false),
-          ),
+          create: (context) => NavigationViewModel(null),
           update: (context, moodViewModel, previous) =>
-              NavigationViewModel(moodViewModel),
+              previous?.updateMoodViewModel(moodViewModel) ?? NavigationViewModel(moodViewModel),
         ),
       ],
       child: MaterialApp(
         title: 'Mood Tracker',
         themeMode: ThemeMode.dark, // Always use dark mode for Web3 style
-        theme: themeService?.darkTheme ?? ThemeService.darkTheme,
-        darkTheme: themeService?.darkTheme ?? ThemeService.darkTheme,
+        theme: ThemeService.darkTheme,
+        darkTheme: ThemeService.darkTheme,
         home: const MainNavigationPage(),
         navigatorObservers: [
           // Add Firebase Analytics observer for screen tracking

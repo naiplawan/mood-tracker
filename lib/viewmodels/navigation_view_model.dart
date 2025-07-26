@@ -4,12 +4,12 @@ import 'mood_view_model.dart';
 /// ViewModel for the main navigation
 class NavigationViewModel extends BaseViewModel {
   int _selectedIndex = 0;
-  final MoodViewModel _moodViewModel;
+  MoodViewModel? _moodViewModel;
 
   NavigationViewModel(this._moodViewModel);
 
   int get selectedIndex => _selectedIndex;
-  MoodViewModel get moodViewModel => _moodViewModel;
+  MoodViewModel? get moodViewModel => _moodViewModel;
 
   /// Change the selected tab index
   void setSelectedIndex(int index) {
@@ -19,8 +19,17 @@ class NavigationViewModel extends BaseViewModel {
     }
   }
 
+  /// Update the mood view model dependency
+  NavigationViewModel updateMoodViewModel(MoodViewModel moodViewModel) {
+    _moodViewModel = moodViewModel;
+    notifyListeners();
+    return this;
+  }
+
   /// Initialize the navigation view model
   Future<void> initialize() async {
-    await _moodViewModel.loadMoodEntries();
+    if (_moodViewModel != null) {
+      await _moodViewModel!.loadMoodEntries();
+    }
   }
 }

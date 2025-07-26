@@ -143,6 +143,8 @@ Key packages:
 
 ### Runtime Issues
 - **Provider errors**: Ensure ViewModels are properly registered in MultiProvider setup
+  - NavigationViewModel uses ChangeNotifierProxyProvider with nullable MoodViewModel dependency
+  - Always add null checks when accessing dependent ViewModels in UI components
 - **Database errors**: Check SQLite initialization and migration status
 - **Notification permissions**: Handle runtime permission requests for Android 13+
 - **Timezone issues**: Verify timezone package initialization in main()

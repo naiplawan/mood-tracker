@@ -44,7 +44,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           builder: (context, navigationViewModel, child) {
             final moodViewModel = navigationViewModel.moodViewModel;
             
-            if (moodViewModel.isLoading) {
+            if (moodViewModel == null || moodViewModel.isLoading) {
               return const Center(
                 child: CircularProgressIndicator(
                   color: Colors.white,
@@ -76,15 +76,15 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                Colors.white.withOpacity(0.1),
-                Colors.white.withOpacity(0.05),
+                Colors.white.withValues(alpha: 0.1),
+                Colors.white.withValues(alpha: 0.05),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withValues(alpha: 0.1),
             ),
           ),
           child: ClipRRect(
@@ -98,7 +98,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 elevation: 0,
                 type: BottomNavigationBarType.fixed,
                 selectedItemColor: Colors.white,
-                unselectedItemColor: Colors.white.withOpacity(0.5),
+                unselectedItemColor: Colors.white.withValues(alpha: 0.5),
                 selectedLabelStyle: const TextStyle(
                   fontWeight: FontWeight.w600,
                 ),
@@ -121,7 +121,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       icon: Icon(icon),
       activeIcon: SlideTransitionAnimation(
         child: GlowAnimation(
-          glowColor: Theme.of(context).primaryColor.withOpacity(0.3),
+          glowColor: Theme.of(context).primaryColor.withValues(alpha: 0.3),
           child: Icon(activeIcon),
         ),
       ),
